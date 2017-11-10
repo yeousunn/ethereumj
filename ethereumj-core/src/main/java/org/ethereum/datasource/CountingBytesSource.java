@@ -20,6 +20,8 @@ package org.ethereum.datasource;
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.util.ByteUtil;
 import org.ethereum.util.RLP;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
@@ -40,6 +42,8 @@ import java.util.Arrays;
  */
 public class CountingBytesSource extends AbstractChainedSource<byte[], byte[], byte[], byte[]>
         implements HashedKeySource<byte[], byte[]> {
+
+    private static final Logger logger = LoggerFactory.getLogger("db");
 
     QuotientFilter filter;
     boolean dirty = false;
@@ -108,7 +112,10 @@ public class CountingBytesSource extends AbstractChainedSource<byte[], byte[], b
         if (filter != null && dirty) {
             byte[] filterBytes;
             synchronized (this) {
+                logger.debug("CountingBytesSource: serialize bloom started");
+                long s = System.currentTimeMillis();
                 filterBytes = filter.serialize();
+                logger.debug("CountingBytesSource: serialize bloom completed in " + (System.currentTimeMillis() - s) + " ms");
             }
             getSource().put(filterKey, filterBytes);
             dirty = false;

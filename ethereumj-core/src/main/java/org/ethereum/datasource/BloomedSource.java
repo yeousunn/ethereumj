@@ -123,7 +123,10 @@ public class BloomedSource extends AbstractChainedSource<byte[], byte[], byte[],
     @Override
     protected boolean flushImpl() {
         if (filter != null && dirty) {
+            logger.debug("BloomedSource: serialize bloom started");
+            long s = System.currentTimeMillis();
             getSource().put(filterKey, filter.serialize());
+            logger.debug("BloomedSource: serialize bloom completed in " + (System.currentTimeMillis() - s) + " ms");
             dirty = false;
             return true;
         } else {
