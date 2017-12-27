@@ -44,7 +44,7 @@ public class ReadCache<Key, Value> extends AbstractCachedSource<Key, Value> {
 
     private final Value NULL = (Value) new Object();
 
-    private Map<Key, Value> cache;
+    protected Map<Key, Value> cache;
     private boolean byteKeyMap;
 
     public ReadCache(Source<Key, Value> src) {
@@ -110,8 +110,16 @@ public class ReadCache<Key, Value> extends AbstractCachedSource<Key, Value> {
             ret = getSource().get(key);
             cache.put(key, ret == null ? NULL : ret);
             cacheAdded(key, ret);
+            onSourceHit(ret);
         }
+        onGet(ret);
         return ret;
+    }
+
+    protected void onSourceHit(Value val) {
+    }
+
+    protected void onGet(Value val) {
     }
 
     @Override

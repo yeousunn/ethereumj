@@ -19,6 +19,8 @@ package org.ethereum.datasource.prune;
 
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.datasource.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Persistent source of {@link PruneEntry} data. <br/>
@@ -28,6 +30,8 @@ import org.ethereum.datasource.*;
  * @since 25.12.2017
  */
 public class PruneEntrySource implements Source<byte[], PruneEntry> {
+
+    private static final Logger logger = LoggerFactory.getLogger("prune");
 
     private byte[] filterKey = HashUtil.sha3("filterKey".getBytes());
 
@@ -53,7 +57,40 @@ public class PruneEntrySource implements Source<byte[], PruneEntry> {
         }.withName("pruneSource");
 
         // 64 bytes - rounded up size of the entry
-        readCache = new ReadCache.BytesKey<>(writeCache).withMaxCapacity(cacheSize * 1024 * 1024 / 64);
+        readCache = new ReadCache.BytesKey<PruneEntry>(writeCache) {
+
+            int srcHits = 0;
+            int srcHitsTotal = 0;
+            int falseHits = 0;
+            int falseHitsTotal = 0;
+            int hits = 0;
+            int maxEntries = 0;
+
+            @Override
+            protected void onSourceHit(PruneEntry val) {
+                ++srcHits;
+                ++srcHitsTotal;
+                if (val == null) {
+                    ++falseHits;
+                    ++falseHitsTotal;
+                }
+            }
+
+            @Override
+            protected void onGet(PruneEntry val) {
+
+                maxEntries = Math.max(maxEntries, cache.size());
+
+                if (++hits % 100_000 == 0) {
+                    logger.info("ReadCache: srcHits {}/{} : {}/{} falseHits {}/{} : {}/{} entries {}/{}",
+                            srcHits, srcHitsTotal, String.format("%.4f", (double) srcHits / 100_000), String.format("%.4f", (double) srcHitsTotal / hits),
+                            falseHits, falseHitsTotal, String.format("%.4f", (double) falseHits / 100_000), String.format("%.4f", (double) falseHitsTotal / hits),
+                            cache.size(), maxEntries);
+                    falseHits = srcHits = 0;
+                }
+            }
+
+        }.withMaxCapacity(cacheSize * 1024 * 1024 / 64);
 
         byte[] filterBytes = store.get(filterKey);
         if (filterBytes != null) {

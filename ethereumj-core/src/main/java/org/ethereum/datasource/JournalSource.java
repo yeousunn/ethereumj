@@ -54,6 +54,8 @@ import static org.ethereum.datasource.prune.PruneWindow.DetachStatus.PRUNED;
 public class JournalSource<V> extends AbstractChainedSource<byte[], V, byte[], V>
         implements HashedKeySource<byte[], V> {
 
+    public static long pruneTime = 0;
+
     private static class Update {
         byte[] updateHash;
         List<byte[]> insertedKeys = new ArrayList<>();
@@ -128,8 +130,10 @@ public class JournalSource<V> extends AbstractChainedSource<byte[], V, byte[], V
             return;
         }
 
+        long s = System.currentTimeMillis();
         currentUpdate.insertedKeys.add(key);
         pruning.inserted(key);
+        pruneTime += System.currentTimeMillis() - s;
         getSource().put(key, val);
     }
 
@@ -140,8 +144,10 @@ public class JournalSource<V> extends AbstractChainedSource<byte[], V, byte[], V
      */
     @Override
     public synchronized void delete(byte[] key) {
+        long s = System.currentTimeMillis();
         currentUpdate.deletedKeys.add(key);
         pruning.deleted(key);
+        pruneTime += System.currentTimeMillis() - s;
     }
 
     @Override
@@ -158,9 +164,11 @@ public class JournalSource<V> extends AbstractChainedSource<byte[], V, byte[], V
      * via revertUpdate call
      */
     public synchronized void commitUpdates(byte[] updateHash) {
+        long s = System.currentTimeMillis();
         currentUpdate.updateHash = updateHash;
         journal.put(updateHash, currentUpdate);
         currentUpdate = new Update();
+        pruneTime += System.currentTimeMillis() - s;
     }
 
     /**
@@ -174,6 +182,7 @@ public class JournalSource<V> extends AbstractChainedSource<byte[], V, byte[], V
      * Given update hash prunes touched nodes
      */
     public synchronized void persistUpdate(byte[] updateHash) {
+        long s = System.currentTimeMillis();
         Update update = journal.get(updateHash);
         if (update == null) throw new RuntimeException("No update found: " + Hex.toHexString(updateHash));
 
@@ -181,12 +190,14 @@ public class JournalSource<V> extends AbstractChainedSource<byte[], V, byte[], V
         update.deletedKeys.forEach(this::firePruning);
 
         journal.delete(updateHash);
+        pruneTime += System.currentTimeMillis() - s;
     }
 
     /**
      * Reverts all changes made under this update hash and prunes touched nodes
      */
     public synchronized void revertUpdate(byte[] updateHash) {
+        long s = System.currentTimeMillis();
         Update update = journal.get(updateHash);
         if (update == null) throw new RuntimeException("No update found: " + Hex.toHexString(updateHash));
 
@@ -197,6 +208,7 @@ public class JournalSource<V> extends AbstractChainedSource<byte[], V, byte[], V
         update.deletedKeys.forEach(this::firePruning);
 
         journal.delete(updateHash);
+        pruneTime += System.currentTimeMillis() - s;
     }
 
     /**

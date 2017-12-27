@@ -22,6 +22,7 @@ import org.ethereum.config.BlockchainConfig;
 import org.ethereum.config.CommonConfig;
 import org.ethereum.config.SystemProperties;
 import org.ethereum.crypto.HashUtil;
+import org.ethereum.datasource.JournalSource;
 import org.ethereum.datasource.inmem.HashMapDB;
 import org.ethereum.db.*;
 import org.ethereum.trie.Trie;
@@ -403,8 +404,13 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
         return summary;
     }
 
-
+    private static final Logger loggerPrune = LoggerFactory.getLogger("prune");
+    long processing = 0;
+    long pruningTotal = 0;
+    long processingTotal = 0;
     public synchronized ImportResult tryToConnect(final Block block) {
+
+        long s = System.currentTimeMillis();
 
         if (logger.isDebugEnabled())
             logger.debug("Try connect block hash: {}, number: {}",
@@ -458,6 +464,19 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
             if (ret == IMPORTED_BEST) {
                 eventDispatchThread.invokeLater(() -> pendingState.processBest(block, summary.getReceipts()));
             }
+        }
+
+        processing += System.currentTimeMillis() - s;
+
+        if (block.getNumber() > 0 && block.getNumber() % 1000 == 0) {
+            processingTotal += processing;
+            pruningTotal += JournalSource.pruneTime;
+
+            loggerPrune.info("Prune time: instant {}/{} : {}, total {}/{} : {}",
+                    JournalSource.pruneTime, processing, String.format("%.4f", (double) JournalSource.pruneTime / processing),
+                    pruningTotal, processingTotal, String.format("%.4f", (double) pruningTotal / processingTotal));
+
+            processing = JournalSource.pruneTime = 0;
         }
 
         return ret;
