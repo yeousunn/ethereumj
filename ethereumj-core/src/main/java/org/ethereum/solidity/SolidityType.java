@@ -136,6 +136,23 @@ public abstract class SolidityType {
             }
         }
 
+        @Override
+        public String getCanonicalName() {
+            return getArrayCanonicalName("");
+        }
+
+        String getArrayCanonicalName(String parentDimStr) {
+            String myDimStr = parentDimStr + getCanonicalDimension();
+            if (getElementType() instanceof ArrayType) {
+                return ((ArrayType) getElementType()).
+                        getArrayCanonicalName(myDimStr);
+            } else {
+                return getElementType().getCanonicalName() + myDimStr;
+            }
+        }
+
+        protected abstract String getCanonicalDimension();
+
         public SolidityType getElementType() {
             return elementType;
         }
@@ -155,8 +172,8 @@ public abstract class SolidityType {
         }
 
         @Override
-        public String getCanonicalName() {
-            return elementType.getCanonicalName() + "[" + size + "]";
+        protected String getCanonicalDimension() {
+            return "[" + size + "]";
         }
 
         @Override
@@ -192,8 +209,8 @@ public abstract class SolidityType {
         }
 
         @Override
-        public String getCanonicalName() {
-            return elementType.getCanonicalName() + "[]";
+        protected String getCanonicalDimension() {
+            return "[]";
         }
 
         @Override
